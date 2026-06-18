@@ -7,13 +7,3 @@ import { initTheme } from './composables/useTheme'
 initTheme()
 
 createApp(App).mount('#app')
-
-window.__notifyPywebviewReady = async function notifyPywebviewReady() {
-  try {
-    if (window.pywebview?.api?.notify_ready) {
-      await window.pywebview.api.notify_ready()
-    }
-  } catch (_error) {
-    // 启动时通知失败不影响主界面运行
-  }
-}

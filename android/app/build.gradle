@@ -17,10 +17,45 @@ android {
 
     sourceSets {
         main {
-            // Keep the existing channel CSV files as Android assets without copying them.
-            assets.srcDirs += ['../../channels']
+            assets.srcDirs += [
+                "$buildDir/generated/assets/frontend",
+                '../../channels'
+            ]
         }
     }
+}
+
+// One-command Android build: ./gradlew :app:assembleDebug
+// The Android Gradle build now installs/builds Vue and copies dist into WebView assets.
+def frontendDir = rootProject.file('../frontend')
+def generatedFrontendAssets = layout.buildDirectory.dir('generated/assets/frontend/www')
+
+tasks.register('installFrontendDependencies', Exec) {
+    workingDir frontendDir
+    commandLine 'npm', 'install'
+    inputs.file frontendDir.toPath().resolve('package.json').toFile()
+    inputs.file frontendDir.toPath().resolve('package-lock.json').toFile()
+    outputs.dir frontendDir.toPath().resolve('node_modules').toFile()
+}
+
+tasks.register('buildFrontend', Exec) {
+    dependsOn 'installFrontendDependencies'
+    workingDir frontendDir
+    commandLine 'npm', 'run', 'build'
+    inputs.dir frontendDir.toPath().resolve('src').toFile()
+    inputs.file frontendDir.toPath().resolve('index.html').toFile()
+    inputs.file frontendDir.toPath().resolve('vite.config.js').toFile()
+    outputs.dir frontendDir.toPath().resolve('dist').toFile()
+}
+
+tasks.register('syncFrontendAssets', Copy) {
+    dependsOn 'buildFrontend'
+    from frontendDir.toPath().resolve('dist').toFile()
+    into generatedFrontendAssets
+}
+
+tasks.named('preBuild') {
+    dependsOn 'syncFrontendAssets'
 }
 
 dependencies {

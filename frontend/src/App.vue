@@ -198,15 +198,6 @@ async function onBackgroundSelected(event) {
 }
 
 async function toggleFullscreen() {
-  try {
-    if (window.pywebview?.api?.toggle_native_fullscreen) {
-      await window.pywebview.api.toggle_native_fullscreen()
-      return
-    }
-  } catch (_error) {
-    // fallback to browser fullscreen below
-  }
-
   if (!document.fullscreenElement) {
     await document.documentElement.requestFullscreen()
   } else {
@@ -269,9 +260,6 @@ onMounted(async () => {
   window.addEventListener('click', onGlobalClick)
   // 恢复持久化背景
   await restoreBackground()
-  if (typeof window.__notifyPywebviewReady === 'function') {
-    await window.__notifyPywebviewReady()
-  }
 })
 
 onUnmounted(() => {

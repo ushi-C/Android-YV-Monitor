@@ -14,6 +14,8 @@ class ScanService(
 ) {
     private val scanning = AtomicBoolean(false)
     @Volatile private var results = JSONArray()
+    @Volatile private var progress = 0
+    @Volatile private var total = 0
     @Volatile private var networkAvailable = true
     @Volatile private var networkReason = "UNKNOWN"
 
@@ -27,13 +29,17 @@ class ScanService(
             return JSONObject().put("running", true).put("message", "scan already running")
         }
         return try {
+            progress = 0
+            total = channels.length()
             val nextResults = coroutineScope {
                 (0 until channels.length()).map { index ->
                     async {
                         val channel = channels.getJSONObject(index)
                         runCatching {
                             checkSingleChannel(channel.optString("url").ifBlank { channel.optString("id") }, channel.optString("title"))
-                        }.getOrElse { error ->
+                        }.onSuccess { progress += 1 }
+                            .onFailure { progress += 1 }
+                            .getOrElse { error ->
                             JSONObject()
                                 .put("id", channel.optString("id"))
                                 .put("title", channel.optString("title"))
@@ -51,7 +57,11 @@ class ScanService(
     }
 
     fun getStatus(): JSONObject = JSONObject()
+        .put("is_running", scanning.get())
         .put("scanning", scanning.get())
+        .put("is_monitoring", !scanning.get())
+        .put("progress", progress)
+        .put("total", total)
         .put("results", results)
         .put("network", getNetworkStatus())
 
