@@ -3,14 +3,10 @@
  * ─────────────────
  * 背景图片持久化 composable。
  *
- * 存储策略（双轨，优先后端）：
- *   1. 后端 API（pywebview 环境）：PUT /api/background  存图片文件
- *                                   GET /api/background  取图片（返回 base64 JSON）
- *                                   DELETE /api/background  清除
- *   2. IndexedDB（浏览器 / 降级）：存完整 base64，无 5 MB 限制
+ * 存储策略：
+ *   Android WebView 使用 IndexedDB 保存完整 base64，无 5 MB localStorage 限制。
  *
- * localStorage 仅存一个标志位 'yv_bg_source'（'backend' | 'idb'），
- * 用来在启动时决定从哪里恢复，不存图片本体。
+ * 原 Win10/FastAPI 背景 API 已移除。
  */
 
 import { ref } from 'vue'
@@ -63,47 +59,10 @@ async function idbDelete(key) {
   })
 }
 
-// ── Backend API helpers ────────────────────────────────────────────────────
+// ── Android storage strategy ────────────────────────────────────────────────
 
-/**
- * 判断是否在 pywebview 环境（有后端 API 可用）。
- * 用 /api/status 响应来判断，避免 import 循环。
- */
-let _backendAvailable = null
-async function isBackendAvailable() {
-  if (_backendAvailable !== null) return _backendAvailable
-  try {
-    const res = await fetch('/api/status', { method: 'GET' })
-    _backendAvailable = res.ok
-  } catch {
-    _backendAvailable = false
-  }
-  return _backendAvailable
-}
-
-/** 上传图片到后端，接受 base64 data URL */
-async function backendSave(dataUrl) {
-  const res = await fetch('/api/background', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: dataUrl }),
-  })
-  if (!res.ok) throw new Error(`backend save failed: ${res.status}`)
-}
-
-/** 从后端读取背景，返回 base64 data URL 或 null */
-async function backendLoad() {
-  const res = await fetch('/api/background')
-  if (res.status === 404) return null
-  if (!res.ok) throw new Error(`backend load failed: ${res.status}`)
-  const json = await res.json()
-  return json.data || null
-}
-
-/** 清除后端背景 */
-async function backendDelete() {
-  await fetch('/api/background', { method: 'DELETE' })
-}
+// Android WebView keeps user-selected background images in IndexedDB.
+// The former FastAPI background endpoint has been removed with the Windows runtime.
 
 // ── Composable ─────────────────────────────────────────────────────────────
 
@@ -116,24 +75,9 @@ export function useBackground() {
    */
   async function restoreBackground() {
     try {
-      // 优先尝试后端
-      if (await isBackendAvailable()) {
-        const dataUrl = await backendLoad()
-        if (dataUrl) {
-          appState.userBackgroundUrl = dataUrl
-          return
-        }
-      }
-
-      // 降级：IndexedDB
       const dataUrl = await idbGet(IDB_KEY)
       if (dataUrl) {
         appState.userBackgroundUrl = dataUrl
-        // 如果后端可用，补传到后端（迁移旧数据）
-        if (await isBackendAvailable()) {
-          await backendSave(dataUrl)
-          await idbDelete(IDB_KEY)
-        }
       }
     } catch (err) {
       console.warn('[useBackground] restoreBackground failed:', err)
@@ -156,12 +100,8 @@ export function useBackground() {
       // 先更新界面（立即生效）
       appState.userBackgroundUrl = dataUrl
 
-      // 持久化
-      if (await isBackendAvailable()) {
-        await backendSave(dataUrl)
-      } else {
-        await idbSet(IDB_KEY, dataUrl)
-      }
+      // Android WebView 持久化
+      await idbSet(IDB_KEY, dataUrl)
 
       return true
     } catch (err) {
@@ -179,9 +119,6 @@ export function useBackground() {
   async function clearBackground() {
     appState.userBackgroundUrl = ''
     try {
-      if (await isBackendAvailable()) {
-        await backendDelete()
-      }
       await idbDelete(IDB_KEY)
     } catch (err) {
       console.warn('[useBackground] clearBackground failed:', err)

@@ -169,7 +169,7 @@ async function startScan() {
   try {
     await refreshScan()
   } catch (e) {
-    statusText.value = '后端未连接 (需启动 uvicorn)'
+    statusText.value = 'Android Bridge 未连接'
     scanRunning.value = false
     return
   }
@@ -195,7 +195,7 @@ async function checkStatus() {
     const list = state.results || []
     const latestKeys = new Set(list.map(item => monItemKey(item)))
 
-    // Remove cards that are no longer present in backend results
+    // Remove cards that are no longer present in native scan results
     monItems.value = monItems.value.filter(item => latestKeys.has(monItemKey(item)))
     renderedKeys.clear()
     for (const item of monItems.value) renderedKeys.add(monItemKey(item))
@@ -226,7 +226,7 @@ async function checkStatus() {
     }
     reconcileStatusPolling(state)
   } catch (e) {
-    statusText.value = '后端未连接 (需启动 uvicorn)'
+    statusText.value = 'Android Bridge 未连接'
     clearInterval(pollTimer)
     pollTimer = null
     scanRunning.value = false

@@ -1,46 +1,34 @@
-// Mirrors api-client.js as a composable
+// Android-only API facade. Vue calls Android JavascriptInterface instead of FastAPI.
+
+import { callAndroid } from './useAndroidBridge'
 
 export function useApiClient() {
   async function refreshScan() {
-    return fetch('/api/refresh', { method: 'POST' })
+    return callAndroid('refreshScan')
   }
 
   async function getStatus() {
-    const res = await fetch('/api/status')
-    return res.json()
+    return callAndroid('getStatus')
   }
 
   async function checkChannel(query, title) {
-    const resp = await fetch('/api/check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, title: title || '' }),
-    })
-    return resp.json()
+    return callAndroid('checkChannel', { query, title: title || '' })
   }
 
   async function getChannels() {
-    const res = await fetch('/api/channels')
-    return res.json()
+    return callAndroid('getChannels')
   }
 
   async function getNetworkStatus() {
-    const res = await fetch('/api/network/status')
-    return res.json()
+    return callAndroid('getNetworkStatus')
   }
 
   async function reportNetworkStatus(payload) {
-    const res = await fetch('/api/network/report', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    return res.json()
+    return callAndroid('reportNetworkStatus', payload)
   }
 
   async function requestNetworkCheck() {
-    const res = await fetch('/api/network/check', { method: 'POST' })
-    return res.json()
+    return callAndroid('requestNetworkCheck')
   }
 
   return { refreshScan, getStatus, checkChannel, getChannels, getNetworkStatus, reportNetworkStatus, requestNetworkCheck }
